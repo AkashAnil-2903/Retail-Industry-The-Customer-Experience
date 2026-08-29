@@ -1817,92 +1817,90 @@ function recognizeFromList(empId, type) {
 
 // --- PEER RECOGNITION PAGE ---
 function renderPeerRecognitionPage() {
-  return Promise.all([api('/employee/teammates'), api('/employee/peer-recognitions'), api('/employee/dashboard')]).then(function(results) {
+  return Promise.all([api('/employee/teammates'), api('/employee/peer-recognitions')]).then(function(results) {
     var teammates = results[0] || [];
     var recs = results[1] || [];
-    var dash = results[2] || {};
-    var empName = (dash.employee || {}).name || '';
     var types = [
-      {id: 'helpful_teammate', icon: '\uD83D\uDC4D', label: 'Helpful Teammate', color: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200'},
-      {id: 'great_collaboration', icon: '\uD83E\uDD1D', label: 'Great Collaboration', color: 'bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200'},
-      {id: 'product_knowledge_star', icon: '\uD83D\uDCDA', label: 'Product Expert', color: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200'},
-      {id: 'customer_first', icon: '\uD83D\uDE0D', label: 'Customer First', color: 'bg-pink-50 text-pink-700 hover:bg-pink-100 border-pink-200'},
-      {id: 'pos_champion_peer', icon: '\u2328\uFE0F', label: 'POS Champion', color: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200'}
+      {id: 'helpful_teammate', icon: '\uD83D\uDC4D', label: 'Helpful Teammate', color: 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'},
+      {id: 'great_collaboration', icon: '\uD83E\uDD1D', label: 'Great Collab', color: 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'},
+      {id: 'product_knowledge_star', icon: '\uD83D\uDCDA', label: 'Product Expert', color: 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'},
+      {id: 'customer_first', icon: '\uD83D\uDE0D', label: 'Customer First', color: 'bg-pink-50 text-pink-700 border-pink-300 hover:bg-pink-100'},
+      {id: 'pos_champion_peer', icon: '\u2328\uFE0F', label: 'POS Champion', color: 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'}
     ];
 
     var html = '<div class="max-w-4xl mx-auto p-4">';
 
-    // Back button + title
+    // ─── HEADER WITH BACK BUTTON ───
     html += '<div class="flex items-center gap-3 mb-6">';
-    html += '<button onclick="navigate(\'employee-dashboard\')" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition text-gray-600 text-lg">\u2190</button>';
-    html += '<div><h2 class="text-xl font-bold text-gray-800">\uD83D\uDD17 ' + t('peerRecognition') + '</h2>';
-    html += '<p class="text-gray-500 text-xs">Recognize your teammates! You earn +25 XP, they earn +50 XP.</p></div>';
+    html += '<button onclick="navigate(\'employee-dashboard\')" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition text-gray-600 font-bold text-lg flex-shrink-0">\u2190</button>';
+    html += '<div class="flex-1">';
+    html += '<h2 class="text-xl font-bold text-gray-800">\uD83D\uDD17 Peer Recognition</h2>';
+    html += '<p class="text-gray-500 text-xs">Recognize your teammates! You earn +25 XP, they earn +50 XP.</p>';
+    html += '</div>';
     html += '</div>';
 
-    // Give Recognition Card
+    // ─── GIVE RECOGNITION CARD ───
     html += '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">';
-    html += '<div class="flex items-center gap-2 mb-4">';
-    html += '<span class="text-2xl">\u2B50</span>';
-    html += '<h3 class="font-semibold text-gray-800">Give Recognition</h3>';
-    html += '</div>';
+    html += '<h3 class="font-semibold text-gray-800 mb-4">\u2B50 Give Recognition</h3>';
 
-    // Select teammate
-    html += '<label class="block text-xs font-medium text-gray-500 mb-1">Select Teammate</label>';
-    html += '<select id="peer-emp" class="w-full px-4 py-3 border border-gray-200 rounded-xl mb-4 text-sm bg-gray-50 focus:ring-2 focus:ring-brand-500 focus:border-brand-500">';
+    // Step 1: Select teammate
+    html += '<div class="mb-4">';
+    html += '<label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Step 1: Select Teammate</label>';
+    html += '<select id="peer-emp" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-brand-500 focus:border-brand-500">';
     if (teammates.length === 0) {
       html += '<option value="">No teammates in your store</option>';
     }
     for (var i = 0; i < teammates.length; i++) {
-      html += '<option value="' + teammates[i].id + '">' + teammates[i].name + ' \u2022 Lv.' + teammates[i].level + ' \u2022 ' + teammates[i].xp + ' XP</option>';
+      html += '<option value="' + teammates[i].id + '">' + teammates[i].name + ' (Lv.' + teammates[i].level + ', ' + teammates[i].xp + ' XP)</option>';
     }
-    html += '</select>';
+    html += '</select></div>';
 
-    // Recognition type buttons
-    html += '<label class="block text-xs font-medium text-gray-500 mb-2">What did they do great?</label>';
-    html += '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">';
+    // Step 2: Recognition type
+    html += '<div class="mb-4">';
+    html += '<label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Step 2: What did they do great?</label>';
+    html += '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2">';
     for (var j = 0; j < types.length; j++) {
-      html += '<button onclick="selectRecogType(\'' + types[j].id + '\', this)" data-type="' + types[j].id + '" class="peer-type-btn px-3 py-3 text-xs font-medium rounded-xl border-2 transition ' + types[j].color + '">' + types[j].icon + '<br>' + types[j].label + '</button>';
+      html += '<button onclick="selectRecogType(\'' + types[j].id + '\', this)" data-type="' + types[j].id + '" class="peer-type-btn p-3 text-center text-xs font-semibold rounded-xl border-2 transition cursor-pointer ' + types[j].color + '">' + types[j].icon + '<br><span class="mt-1 block">' + types[j].label + '</span></button>';
     }
+    html += '</div></div>';
+
+    // Step 3: Personal message + SEND BUTTON
+    html += '<div class="mb-2">';
+    html += '<label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Step 3: Add a message</label>';
+    html += '</div>';
+    html += '<div style="display:flex; gap:8px; align-items:stretch;">';
+    html += '<input id="peer-message" type="text" placeholder="e.g., Great job handling that customer!" style="flex:1; padding:12px 16px; border:1px solid #e5e7eb; border-radius:12px; font-size:14px; background:#f9fafb;" />';
+    html += '<button onclick="sendPeerRecognition()" id="peer-send-btn" style="padding:12px 24px; background:#6366f1; color:white; font-weight:700; font-size:14px; border:none; border-radius:12px; cursor:pointer; white-space:nowrap; box-shadow:0 2px 8px rgba(99,102,241,0.3);" disabled>\u279C Send</button>';
+    html += '</div>';
     html += '</div>';
 
-    // Personal message
-    html += '<label class="block text-xs font-medium text-gray-500 mb-1">Personal Message (optional)</label>';
-    html += '<div class="flex gap-2">';
-    html += '<input id="peer-message" type="text" placeholder="e.g., Great job handling that difficult customer!" class="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />';
-    html += '<button onclick="sendPeerRecognition()" id="peer-send-btn" class="px-6 py-3 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700 transition shadow-sm disabled:opacity-50" disabled>\u279C Send</button>';
-    html += '</div>';
-    html += '</div>';
-
-    // Recent peer recognitions feed
+    // ─── RECENT PEER RECOGNITIONS ───
     html += '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">';
     html += '<div class="flex items-center gap-2 mb-4">';
     html += '<span class="text-xl">\uD83D\uDD17</span>';
     html += '<h3 class="font-semibold text-gray-800">Recent Peer Recognitions</h3>';
-    html += '<span class="ml-auto text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">' + recs.length + '</span>';
+    html += '<span class="ml-auto text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">' + recs.length + '</span>';
     html += '</div>';
     if (recs.length === 0) {
       html += '<div class="text-center py-8">';
       html += '<div class="text-4xl mb-2">\uD83E\uDD14</div>';
-      html += '<p class="text-gray-400 text-sm">No peer recognitions yet. Be the first to recognize a teammate!</p>';
+      html += '<p class="text-gray-400 text-sm">No peer recognitions yet. Be the first!</p>';
       html += '</div>';
     }
     for (var k = 0; k < recs.length; k++) {
       var r = recs[k];
       var typeObj = types.find(function(t){ return t.id === r.type; }) || types[0];
-      html += '<div class="flex items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl mb-2 border border-gray-100">';
-      html += '<div class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-lg flex-shrink-0">' + (typeObj ? typeObj.icon : '\uD83C\uDF1F') + '</div>';
-      html += '<div class="flex-1 min-w-0">';
-      html += '<div class="font-medium text-sm text-gray-800">' + r.from_name + ' <span class="text-gray-400">\u2192</span> ' + r.to_name + '</div>';
-      html += '<div class="text-xs text-gray-500 truncate">' + r.message + '</div>';
+      html += '<div style="display:flex; align-items:center; gap:12px; padding:12px 16px; background:linear-gradient(to right,#f9fafb,#fff); border-radius:12px; margin-bottom:8px; border:1px solid #f3f4f6;">';
+      html += '<div style="width:40px; height:40px; border-radius:50%; background:#ede9fe; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">' + (typeObj ? typeObj.icon : '\uD83C\uDF1F') + '</div>';
+      html += '<div style="flex:1; min-width:0;">';
+      html += '<div style="font-weight:600; font-size:14px; color:#1f2937;">' + r.from_name + ' \u2192 ' + r.to_name + '</div>';
+      html += '<div style="font-size:12px; color:#6b7280; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + r.message + '</div>';
       html += '</div>';
-      html += '<div class="text-right flex-shrink-0">';
-      html += '<span class="inline-block px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">+' + r.xp_awarded + ' XP</span>';
-      html += '</div>';
+      html += '<span style="background:#dcfce7; color:#166534; padding:2px 10px; border-radius:9999px; font-size:12px; font-weight:600; flex-shrink:0;">+' + r.xp_awarded + ' XP</span>';
       html += '</div>';
     }
     html += '</div></div>';
 
-    // Store selected type
     window._selectedRecogType = null;
     return html;
   });
@@ -1942,51 +1940,50 @@ function sendPeerRecognition() {
 
 // --- POS MICRO-LEARNING PAGE ---
 function renderPosLearningPage() {
-  return Promise.all([api('/employee/pos-lessons?trigger=after_sale'), api('/employee/pos-lessons?trigger=idle'), api('/employee/pos-lessons?trigger=before_shift')]).then(function(results) {
+  return Promise.all([api('/employee/pos-lessons?trigger=after_sale&language=en'), api('/employee/pos-lessons?trigger=idle&language=en'), api('/employee/pos-lessons?trigger=before_shift&language=en')]).then(function(results) {
     var afterSale = results[0] || [];
     var idle = results[1] || [];
     var beforeShift = results[2] || [];
 
     var html = '<div class="max-w-4xl mx-auto p-4">';
 
-    // Back button + title
-    html += '<div class="flex items-center gap-3 mb-6">';
-    html += '<button onclick="navigate(\'employee-dashboard\')" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition text-gray-600 text-lg">\u2190</button>';
-    html += '<div><h2 class="text-xl font-bold text-gray-800">\uD83D\uDCBB ' + t('posLearning') + '</h2>';
-    html += '<p class="text-gray-500 text-xs">Quick tips for the sales floor. Complete during natural breaks.</p></div>';
-    html += '</div>';
+    // ─── HEADER WITH BACK BUTTON ───
+    html += '<div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">';
+    html += '<button onclick="navigate(\'employee-dashboard\')" style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#f3f4f6; border:none; cursor:pointer; font-size:18px; color:#4b5563; flex-shrink:0;">\u2190</button>';
+    html += '<div class="flex-1">';
+    html += '<h2 style="font-size:20px; font-weight:700; color:#1f2937; margin:0;">\uD83D\uDCBB POS Learning Tips</h2>';
+    html += '<p style="font-size:12px; color:#6b7280; margin:4px 0 0 0;">Quick tips for the sales floor. Complete during natural breaks.</p>';
+    html += '</div></div>';
 
-    function renderLessonSection(title, icon, lessons, color) {
+    function renderLessonSection(title, icon, lessons, bgColor) {
       if (lessons.length === 0) return '';
-      var s = '<div class="mb-6">';
-      s += '<div class="flex items-center gap-2 mb-3">';
-      s += '<span class="text-xl">' + icon + '</span>';
-      s += '<h3 class="font-semibold text-gray-800">' + title + '</h3>';
-      s += '<span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">' + lessons.length + ' tips</span>';
+      var s = '<div style="margin-bottom:24px;">';
+      s += '<div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">';
+      s += '<span style="font-size:20px;">' + icon + '</span>';
+      s += '<h3 style="font-weight:700; color:#1f2937; font-size:16px; margin:0;">' + title + '</h3>';
+      s += '<span style="font-size:11px; background:#f3f4f6; color:#6b7280; padding:2px 8px; border-radius:9999px;">' + lessons.length + ' tips</span>';
       s += '</div>';
       for (var i = 0; i < lessons.length; i++) {
         var l = lessons[i];
-        s += '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-3 hover:shadow-md transition">';
-        s += '<div class="flex items-start gap-4">';
-        s += '<div class="w-10 h-10 rounded-xl ' + color + ' flex items-center justify-center text-lg flex-shrink-0">' + icon + '</div>';
-        s += '<div class="flex-1 min-w-0">';
-        s += '<div class="font-semibold text-sm text-gray-800 mb-1">' + l.title + '</div>';
-        s += '<div class="text-xs text-gray-600 leading-relaxed mb-2">' + l.content + '</div>';
-        s += '<div class="flex items-center gap-2">';
-        s += '<span class="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">' + l.skill_category.replace(/_/g, ' ') + '</span>';
-        s += '<span class="text-xs text-gray-400">\u2022</span>';
-        s += '<span class="text-xs text-green-600 font-medium">+' + l.xp_reward + ' XP</span>';
+        s += '<div style="background:white; border-radius:16px; border:1px solid #e5e7eb; padding:20px; margin-bottom:12px; display:flex; align-items:flex-start; gap:16px;">';
+        s += '<div style="width:44px; height:44px; border-radius:12px; ' + bgColor + '; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">' + icon + '</div>';
+        s += '<div style="flex:1; min-width:0;">';
+        s += '<div style="font-weight:700; font-size:14px; color:#1f2937; margin-bottom:4px;">' + l.title + '</div>';
+        s += '<div style="font-size:13px; color:#4b5563; line-height:1.5; margin-bottom:8px;">' + l.content + '</div>';
+        s += '<div style="display:flex; align-items:center; gap:8px;">';
+        s += '<span style="background:#eff6ff; color:#1d4ed8; padding:2px 10px; border-radius:9999px; font-size:11px; font-weight:600;">' + l.skill_category.replace(/_/g, ' ') + '</span>';
+        s += '<span style="color:#22c55e; font-size:12px; font-weight:700;">+' + l.xp_reward + ' XP</span>';
         s += '</div></div>';
-        s += '<button onclick="completePosLesson(\'' + l.id + '\')" class="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition shadow-sm whitespace-nowrap flex-shrink-0">\u2713 Complete</button>';
-        s += '</div></div>';
+        s += '<button onclick="completePosLesson(\'' + l.id + '\')" style="padding:10px 20px; background:linear-gradient(135deg,#22c55e,#10b981); color:white; font-size:13px; font-weight:700; border:none; border-radius:12px; cursor:pointer; white-space:nowrap; flex-shrink:0; box-shadow:0 2px 8px rgba(34,197,94,0.3);">\u2713 Complete</button>';
+        s += '</div>';
       }
       s += '</div>';
       return s;
     }
 
-    html += renderLessonSection('After Sale Tips', '\uD83D\uDCB0', afterSale, 'bg-amber-100 text-amber-700');
-    html += renderLessonSection('Quick Tips (Anytime)', '\u26A1', idle, 'bg-blue-100 text-blue-700');
-    html += renderLessonSection('Before Shift', '\uD83C\uDF05', beforeShift, 'bg-orange-100 text-orange-700');
+    html += renderLessonSection('After Sale Tips', '\uD83D\uDCB0', afterSale, 'background:#fef3c7; color:#92400e;');
+    html += renderLessonSection('Quick Tips (Anytime)', '\u26A1', idle, 'background:#dbeafe; color:#1e40af;');
+    html += renderLessonSection('Before Shift', '\uD83C\uDF05', beforeShift, 'background:#ffedd5; color:#9a3412;');
     html += '</div>';
     return html;
   });

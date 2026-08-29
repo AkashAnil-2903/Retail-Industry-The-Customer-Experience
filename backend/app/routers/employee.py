@@ -199,10 +199,9 @@ def list_teammates(user: User = Depends(get_current_user), db: Session = Depends
 # ─── POS MICRO-LEARNING ───
 
 @router.get("/pos-lessons")
-def list_pos_lessons(trigger: str = "after_sale", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def list_pos_lessons(trigger: str = "after_sale", language: str = "en", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get micro-lessons for current POS context."""
-    emp = get_employee_profile(user, db)
-    return get_pos_micro_lessons(trigger=trigger, language=emp.preferred_language or "en")
+    return get_pos_micro_lessons(trigger=trigger, language=language)
 
 
 @router.post("/pos-lesson/{lesson_id}/complete")
