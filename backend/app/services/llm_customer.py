@@ -315,7 +315,7 @@ def get_llm_response(
             from groq import Groq
             client = Groq(api_key=groq_key)
             response = client.chat.completions.create(
-                model="openai/gpt-oss-120b",
+                model="openai/gpt-oss-20b",
                 messages=messages,
                 temperature=0.9,
                 max_tokens=500,
@@ -325,7 +325,7 @@ def get_llm_response(
             if reply and len(reply) >= 3:
                 return reply
         except Exception as e:
-            logger.warning(f"Groq API error: {e}. Trying Gemini...")
+            logger.error(f"Groq API error: {e}", exc_info=True)
 
     # Try Gemini second
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()

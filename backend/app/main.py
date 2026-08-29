@@ -48,6 +48,40 @@ def health_check():
     return {"status": "ok", "app": "AI Workforce Coach"}
 
 
+@app.get("/api/debug/llm")
+def debug_llm():
+    """Debug endpoint to test LLM API connectivity."""
+    import os
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    
+    result = {
+        "groq_key_set": bool(groq_key),
+        "groq_key_length": len(groq_key),
+        "groq_key_prefix": groq_key[:10] + "..." if len(groq_key) > 10 else groq_key,
+        "gemini_key_set": bool(gemini_key),
+    }
+    
+    if groq_key:
+        try:
+            from groq import Groq
+            client = Groq(api_key=groq_key)
+            response = client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=[{"role": "user", "content": "Say hello in 5 words"}],
+                max_tokens=20,
+            )
+            result["groq_status"] = "working"
+            result["groq_response"] = response.choices[0].message.content.strip()
+        except Exception as e:
+            result["groq_status"] = "error"
+            result["groq_error"] = str(e)
+    else:
+        result["groq_status"] = "no_key"
+    
+    return result
+
+
 # Serve static files
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 if os.path.exists(static_dir):
