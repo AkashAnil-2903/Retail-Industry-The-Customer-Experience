@@ -6,6 +6,7 @@ import json
 from ..database import get_db
 from ..models import *
 from ..auth import get_current_user
+from ..services.engagement_features import check_auto_badges
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
 
@@ -143,7 +144,11 @@ def complete_course(course_id: int, user: User = Depends(get_current_user), db: 
     emp.rank = rank_map.get(emp.level, "Platinum Associate")
     
     db.commit()
-    return {"status": "ok", "xp_earned": 50, "total_xp": emp.xp, "level": emp.level}
+
+    # Check for auto-earned badges
+    new_badges = check_auto_badges(db, emp.id)
+
+    return {"status": "ok", "xp_earned": 50, "total_xp": emp.xp, "level": emp.level, "newly_earned_badges": new_badges}
 
 
 # ─── QUIZ ENDPOINTS ───
@@ -256,7 +261,10 @@ def submit_quiz(quiz_id: int, answers: dict, user: User = Depends(get_current_us
             db.add(skill)
     
     db.commit()
-    
+
+    # Check for auto-earned badges
+    new_badges = check_auto_badges(db, emp.id)
+
     return {
         "score": score,
         "correct": correct,
@@ -265,4 +273,5 @@ def submit_quiz(quiz_id: int, answers: dict, user: User = Depends(get_current_us
         "passing_score": quiz.passing_score,
         "xp_earned": xp_earned,
         "details": details,
+        "newly_earned_badges": new_badges,
     }

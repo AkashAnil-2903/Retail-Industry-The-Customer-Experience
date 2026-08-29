@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from ..database import get_db
 from ..models import User, Employee
 from ..auth import verify_password, create_access_token
+from ..services.engagement_features import update_streak, check_auto_badges
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -34,6 +35,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         if emp:
             employee_id = emp.id
             name = emp.name
+            # Update daily streak on login
+            update_streak(db, emp.id)
+            # Check for auto-earned badges
+            check_auto_badges(db, emp.id)
     
     return TokenResponse(
         access_token=token,

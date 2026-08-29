@@ -172,6 +172,8 @@ function navBar() {
       ['employee-dashboard', '\uD83D\uDCCA', t('dashboard')],
       ['courses-page', '\uD83D\uDCDA', t('courses')],
       ['simulation-page', '\uD83E\uDD16', t('simulation')],
+      ['peer-recognition-page', '\uD83D\uDD17', t('peerRecognition')],
+      ['pos-learning-page', '\uD83D\uDCBB', t('posLearning')],
       ['leaderboard-page', '\uD83C\uDFC6', t('leaderboard')],
       ['challenges-page', '\uD83C\uDFAF', t('challenges')]
     ];
@@ -1790,6 +1792,118 @@ function recognizeFromList(empId, type) {
   });
 }
 
+// --- PEER RECOGNITION PAGE ---
+function renderPeerRecognitionPage() {
+  return Promise.all([api('/employee/teammates'), api('/employee/peer-recognitions')]).then(function(results) {
+    var teammates = results[0] || [];
+    var recs = results[1] || [];
+    var types = [
+      {id: 'helpful_teammate', icon: '\uD83D\uDC4D', label: 'Helpful Teammate'},
+      {id: 'great_collaboration', icon: '\uD83E\uDD1D', label: 'Great Collaboration'},
+      {id: 'product_knowledge_star', icon: '\uD83D\uDCDA', label: 'Product Knowledge Star'},
+      {id: 'customer_first', icon: '\uD83D\uDE0D', label: 'Customer First'},
+      {id: 'pos_champion_peer', icon: '\u2328\uFE0F', label: 'POS Champion'}
+    ];
+    var html = '<div class="max-w-4xl mx-auto p-4">';
+    html += '<h2 class="text-2xl font-bold text-gray-800 mb-6">\uD83D\uDD17 ' + t('peerRecognition') + '</h2>';
+    html += '<p class="text-gray-500 text-sm mb-6">Recognize your teammates for great work! You earn +25 XP and they earn +50 XP.</p>';
+
+    // Recognition form
+    html += '<div class="bg-white rounded-xl shadow-sm p-6 mb-6">';
+    html += '<h3 class="font-semibold mb-4">Give Recognition</h3>';
+    html += '<select id="peer-emp" class="w-full px-3 py-2 border rounded-lg mb-3 text-sm">';
+    for (var i = 0; i < teammates.length; i++) {
+      html += '<option value="' + teammates[i].id + '">' + teammates[i].name + ' (Lv.' + teammates[i].level + ')</option>';
+    }
+    html += '</select>';
+    html += '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">';
+    for (var j = 0; j < types.length; j++) {
+      html += '<button onclick="sendPeerRecognition(\'' + types[j].id + '\')" class="px-3 py-2 text-xs bg-brand-50 text-brand-700 rounded-lg hover:bg-brand-100 transition">' + types[j].icon + ' ' + types[j].label + '</button>';
+    }
+    html += '</div>';
+    html += '<textarea id="peer-message" placeholder="Add a personal message..." class="w-full px-3 py-2 border rounded-lg text-sm" rows="2"></textarea>';
+    html += '</div>';
+
+    // Recent peer recognitions
+    html += '<div class="bg-white rounded-xl shadow-sm p-6">';
+    html += '<h3 class="font-semibold mb-4">Recent Peer Recognitions</h3>';
+    if (recs.length === 0) {
+      html += '<p class="text-gray-400 text-sm">No peer recognitions yet. Be the first!</p>';
+    }
+    for (var k = 0; k < recs.length; k++) {
+      var r = recs[k];
+      html += '<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-2">';
+      html += '<span class="text-2xl">\uD83C\uDF1F</span>';
+      html += '<div class="flex-1"><div class="font-medium text-sm">' + r.from_name + ' \u2192 ' + r.to_name + '</div>';
+      html += '<div class="text-xs text-gray-500">' + r.message + '</div></div>';
+      html += '<span class="text-xs text-green-600 font-medium">+' + r.xp_awarded + ' XP</span>';
+      html += '</div>';
+    }
+    html += '</div></div>';
+    return html;
+  });
+}
+
+function sendPeerRecognition(type) {
+  var empId = document.getElementById('peer-emp').value;
+  var msg = document.getElementById('peer-message').value || 'Great work!';
+  api('/employee/peer-recognize', { method: 'POST', body: JSON.stringify({ employee_id: parseInt(empId), recognition_type: type, message: msg }) }).then(function(res) {
+    if (res && res.status === 'ok') {
+      showToast('Recognized! +' + res.giver_xp_earned + ' XP for you, +' + res.receiver_xp_earned + ' XP for them', 'success');
+      render();
+    } else if (res && res.detail) {
+      showToast(res.detail, 'error');
+    }
+  });
+}
+
+// --- POS MICRO-LEARNING PAGE ---
+function renderPosLearningPage() {
+  return Promise.all([api('/employee/pos-lessons?trigger=after_sale'), api('/employee/pos-lessons?trigger=idle'), api('/employee/pos-lessons?trigger=before_shift')]).then(function(results) {
+    var afterSale = results[0] || [];
+    var idle = results[1] || [];
+    var beforeShift = results[2] || [];
+    var html = '<div class="max-w-4xl mx-auto p-4">';
+    html += '<h2 class="text-2xl font-bold text-gray-800 mb-6">\uD83D\uDCBB ' + t('posLearning') + '</h2>';
+    html += '<p class="text-gray-500 text-sm mb-6">Quick learning tips triggered by POS activity. Complete during natural breaks on the sales floor.</p>';
+
+    function renderLessonSection(title, icon, lessons) {
+      var s = '<div class="mb-6">';
+      s += '<h3 class="font-semibold text-lg mb-3">' + icon + ' ' + title + '</h3>';
+      for (var i = 0; i < lessons.length; i++) {
+        var l = lessons[i];
+        s += '<div class="bg-white rounded-xl shadow-sm p-4 mb-3 border-l-4 border-brand-500">';
+        s += '<div class="flex items-start justify-between">';
+        s += '<div class="flex-1"><div class="font-medium text-sm mb-1">' + l.title + '</div>';
+        s += '<div class="text-xs text-gray-600 mb-2">' + l.content + '</div>';
+        s += '<span class="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">' + l.skill_category.replace(/_/g, ' ') + '</span>';
+        s += '</div>';
+        s += '<button onclick="completePosLesson(\'' + l.id + '\')" class="ml-3 px-3 py-1.5 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition whitespace-nowrap">+' + l.xp_reward + ' XP \u2713</button>';
+        s += '</div></div>';
+      }
+      s += '</div>';
+      return s;
+    }
+
+    html += renderLessonSection('After Sale Tips', '\uD83D\uDCB0', afterSale);
+    html += renderLessonSection('Quick Tips (Anytime)', '\u26A1', idle);
+    html += renderLessonSection('Before Shift', '\uD83C\uDF05', beforeShift);
+    html += '</div>';
+    return html;
+  });
+}
+
+function completePosLesson(lessonId) {
+  api('/employee/pos-lesson/' + lessonId + '/complete', { method: 'POST' }).then(function(res) {
+    if (res && res.xp_earned) {
+      showToast('Lesson complete! +' + res.xp_earned + ' XP', 'success');
+      render();
+    } else if (res && res.detail) {
+      showToast(res.detail, 'error');
+    }
+  });
+}
+
 // --- MAIN RENDER ---
 function render() {
   var app = document.getElementById('app');
@@ -1805,6 +1919,8 @@ function render() {
     case 'simulation-page': handler = renderSimulationPage; break;
     case 'leaderboard-page': handler = renderLeaderboard; break;
     case 'challenges-page': handler = renderChallenges; break;
+    case 'peer-recognition-page': handler = renderPeerRecognitionPage; break;
+    case 'pos-learning-page': handler = renderPosLearningPage; break;
     case 'manager-dashboard': handler = renderManagerDashboard; break;
     case 'manager-store': handler = renderStoreDashboard; break;
     case 'manager-employee': handler = renderManagerEmployee; break;

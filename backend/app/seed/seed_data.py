@@ -236,6 +236,18 @@ def seed_database(db: Session):
         ("Sales Accelerator","Achieve 70%+ upselling score","\U0001f4b0","upselling"),
         ("Learning Champion","Complete all courses","\U0001f393","general"),
         ("Rising Star","Reach Level 5","\u2b50","general"),
+        ("Team Favorite","Get 3+ peer recognitions","\U0001f91d","general"),
+        ("Week Warrior","7-day learning streak","\U0001f525","general"),
+        ("Fortnight Fighter","14-day learning streak","\U0001f525","general"),
+        ("Monthly Master","30-day learning streak","\U0001f525","general"),
+        ("Product Master","Score 85+ in Product Knowledge","\U0001f4da","product_knowledge"),
+        ("Communication Pro","Score 85+ in Communication","\U0001f4ac","communication"),
+        ("Upsell Expert","Score 75+ in Upselling","\U0001f4b0","upselling"),
+        ("Objection Handler","Score 80+ in Objection Handling","\U0001f914","objection_handling"),
+        ("Learning Enthusiast","Complete 5+ courses","\U0001f4d6","general"),
+        ("Practice Makes Perfect","Complete 3+ AI simulations","\U0001f3af","general"),
+        ("Consistent Performer","14+ day streak","\U0001f4aa","general"),
+        ("XP Collector","Earn 2000+ XP","\U0001f3c6","general"),
     ]:
         b = Badge(name=name, description=desc, icon=icon, skill_category=cat)
         db.add(b); db.flush()

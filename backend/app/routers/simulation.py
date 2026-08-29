@@ -7,6 +7,7 @@ import random
 from ..database import get_db
 from ..models import *
 from ..auth import get_current_user
+from ..services.engagement_features import check_auto_badges
 from ..services.ai_simulator import (
     get_mock_customer_response, evaluate_simulation, get_mock_customer_opening,
     detect_language, detect_language_from_messages
@@ -319,6 +320,9 @@ def evaluate_session(session_id: int, user: User = Depends(get_current_user), db
         emp.overall_skill_score = round(sum(s.score for s in all_current) / len(all_current), 1)
 
     db.commit()
+
+    # Check for auto-earned badges
+    new_badges = check_auto_badges(db, emp.id)
 
     # Get pre-assessment comparison if this is post
     pre_comparison = None

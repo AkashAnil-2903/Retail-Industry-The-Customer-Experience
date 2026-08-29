@@ -50,6 +50,7 @@ class Employee(Base):
     upsell_conversion = Column(Float, default=10.0)
     has_completed_pre_assessment = Column(Boolean, default=False)
     has_completed_post_assessment = Column(Boolean, default=False)
+    last_activity_date = Column(DateTime, nullable=True)
 
     user = relationship("User", backref="employee_profile")
     store = relationship("Store", backref="employees")

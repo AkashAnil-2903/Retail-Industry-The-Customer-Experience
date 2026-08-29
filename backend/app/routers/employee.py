@@ -8,6 +8,12 @@ from ..database import get_db
 from ..models import *
 from ..auth import get_current_user
 from ..services.ai_simulator import get_skill_gap_recommendations, get_next_best_action
+from ..services.engagement_features import (
+    give_peer_recognition, get_peer_recognitions,
+    get_pos_micro_lessons, complete_pos_lesson,
+    update_streak, check_and_update_last_activity,
+    check_auto_badges
+)
 
 router = APIRouter(prefix="/api/employee", tags=["employee"])
 
@@ -154,3 +160,84 @@ def update_language(lang_data: dict, user: User = Depends(get_current_user), db:
     emp.preferred_language = lang_data.get("language", "en")
     db.commit()
     return {"status": "ok", "language": emp.preferred_language}
+
+
+# ─── PEER RECOGNITION ───
+
+@router.post("/peer-recognize")
+def peer_recognize(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Employee can recognize a peer in the same store."""
+    emp = get_employee_profile(user, db)
+    to_employee_id = payload.get("employee_id")
+    recognition_type = payload.get("recognition_type", "helpful_teammate")
+    message = payload.get("message", "Great work!")
+
+    result, error = give_peer_recognition(db, emp.id, to_employee_id, recognition_type, message)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return result
+
+
+@router.get("/peer-recognitions")
+def list_peer_recognitions(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get peer recognitions for the employee's store."""
+    emp = get_employee_profile(user, db)
+    return get_peer_recognitions(db, emp.store_id)
+
+
+@router.get("/teammates")
+def list_teammates(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get employees in the same store for peer recognition."""
+    emp = get_employee_profile(user, db)
+    teammates = db.query(Employee).filter(
+        Employee.store_id == emp.store_id,
+        Employee.id != emp.id
+    ).all()
+    return [{"id": e.id, "name": e.name, "xp": e.xp, "level": e.level} for e in teammates]
+
+
+# ─── POS MICRO-LEARNING ───
+
+@router.get("/pos-lessons")
+def list_pos_lessons(trigger: str = "after_sale", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get micro-lessons for current POS context."""
+    emp = get_employee_profile(user, db)
+    return get_pos_micro_lessons(trigger=trigger, language=emp.preferred_language or "en")
+
+
+@router.post("/pos-lesson/{lesson_id}/complete")
+def complete_pos_lesson_endpoint(lesson_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Complete a POS micro-lesson and earn XP."""
+    emp = get_employee_profile(user, db)
+    result, error = complete_pos_lesson(db, emp.id, lesson_id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    # Auto-check badges after earning XP
+    check_auto_badges(db, emp.id)
+    return result
+
+
+# ─── STREAK TRACKING ───
+
+@router.post("/activity")
+def record_activity(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Record daily activity and update streak. Call on login and meaningful actions."""
+    emp = get_employee_profile(user, db)
+    update_streak(db, emp.id)
+    # Refresh emp data
+    db.refresh(emp)
+    return {
+        "streak_days": emp.streak_days,
+        "xp": emp.xp,
+        "level": emp.level,
+    }
+
+
+# ─── AUTO BADGES ───
+
+@router.get("/badges/check")
+def check_badges(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Check and award any qualifying automatic badges."""
+    emp = get_employee_profile(user, db)
+    earned = check_auto_badges(db, emp.id)
+    return {"newly_earned": earned, "count": len(earned)}
