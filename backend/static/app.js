@@ -264,8 +264,10 @@ function renderLoginPage() {
 
 // --- EMPLOYEE DASHBOARD ---
 function renderEmployeeDashboard() {
-  return api('/employee/dashboard').then(function(data) {
-    if (!data) return '<div class="p-8 text-center text-gray-500">' + t('noData') + '</div>';
+  return Promise.all([api('/employee/dashboard'), api('/employee/peer-recognitions')]).then(function(results) {
+    var data = results[0] || {};
+    var peerRecs = results[1] || [];
+    if (!data.employee) return '<div class="p-8 text-center text-gray-500">' + t('noData') + '</div>';
     var emp = data.employee;
     var skills = data.skills || {};
     var html = navBar();
@@ -434,6 +436,27 @@ function renderEmployeeDashboard() {
       html += '<span class="text-sm text-gray-500">' + l.xp + ' XP</span></div>';
     }
     html += '</div></div></div>';
+
+    // Peer Recognitions
+    if (peerRecs.length) {
+      html += '<div class="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100 p-5">';
+      html += '<div class="flex items-center gap-2 mb-3">';
+      html += '<span class="text-xl">\uD83D\uDD17</span>';
+      html += '<h3 class="font-bold text-gray-800">Peer Recognitions</h3>';
+      html += '<button onclick="navigate(\'peer-recognition-page\')" class="ml-auto text-xs text-brand-600 hover:text-brand-800 font-medium">View All \u2192</button>';
+      html += '</div>';
+      html += '<div class="space-y-2">';
+      for (var pi = 0; pi < Math.min(3, peerRecs.length); pi++) {
+        var pr = peerRecs[pi];
+        html += '<div class="flex items-center gap-3 p-3 bg-white/60 rounded-lg">';
+        html += '<span class="text-lg">\uD83C\uDF1F</span>';
+        html += '<div class="flex-1 min-w-0"><div class="text-sm font-medium text-gray-800">' + pr.from_name + ' recognized you</div>';
+        html += '<div class="text-xs text-gray-500 truncate">' + pr.message + '</div></div>';
+        html += '<span class="text-xs text-green-600 font-medium flex-shrink-0">+' + pr.xp_awarded + ' XP</span>';
+        html += '</div>';
+      }
+      html += '</div></div>';
+    }
 
     // Notifications
     var notifs = data.notifications || [];
@@ -1794,66 +1817,126 @@ function recognizeFromList(empId, type) {
 
 // --- PEER RECOGNITION PAGE ---
 function renderPeerRecognitionPage() {
-  return Promise.all([api('/employee/teammates'), api('/employee/peer-recognitions')]).then(function(results) {
+  return Promise.all([api('/employee/teammates'), api('/employee/peer-recognitions'), api('/employee/dashboard')]).then(function(results) {
     var teammates = results[0] || [];
     var recs = results[1] || [];
+    var dash = results[2] || {};
+    var empName = (dash.employee || {}).name || '';
     var types = [
-      {id: 'helpful_teammate', icon: '\uD83D\uDC4D', label: 'Helpful Teammate'},
-      {id: 'great_collaboration', icon: '\uD83E\uDD1D', label: 'Great Collaboration'},
-      {id: 'product_knowledge_star', icon: '\uD83D\uDCDA', label: 'Product Knowledge Star'},
-      {id: 'customer_first', icon: '\uD83D\uDE0D', label: 'Customer First'},
-      {id: 'pos_champion_peer', icon: '\u2328\uFE0F', label: 'POS Champion'}
+      {id: 'helpful_teammate', icon: '\uD83D\uDC4D', label: 'Helpful Teammate', color: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200'},
+      {id: 'great_collaboration', icon: '\uD83E\uDD1D', label: 'Great Collaboration', color: 'bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200'},
+      {id: 'product_knowledge_star', icon: '\uD83D\uDCDA', label: 'Product Expert', color: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200'},
+      {id: 'customer_first', icon: '\uD83D\uDE0D', label: 'Customer First', color: 'bg-pink-50 text-pink-700 hover:bg-pink-100 border-pink-200'},
+      {id: 'pos_champion_peer', icon: '\u2328\uFE0F', label: 'POS Champion', color: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200'}
     ];
-    var html = '<div class="max-w-4xl mx-auto p-4">';
-    html += '<h2 class="text-2xl font-bold text-gray-800 mb-6">\uD83D\uDD17 ' + t('peerRecognition') + '</h2>';
-    html += '<p class="text-gray-500 text-sm mb-6">Recognize your teammates for great work! You earn +25 XP and they earn +50 XP.</p>';
 
-    // Recognition form
-    html += '<div class="bg-white rounded-xl shadow-sm p-6 mb-6">';
-    html += '<h3 class="font-semibold mb-4">Give Recognition</h3>';
-    html += '<select id="peer-emp" class="w-full px-3 py-2 border rounded-lg mb-3 text-sm">';
+    var html = '<div class="max-w-4xl mx-auto p-4">';
+
+    // Back button + title
+    html += '<div class="flex items-center gap-3 mb-6">';
+    html += '<button onclick="navigate(\'employee-dashboard\')" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition text-gray-600 text-lg">\u2190</button>';
+    html += '<div><h2 class="text-xl font-bold text-gray-800">\uD83D\uDD17 ' + t('peerRecognition') + '</h2>';
+    html += '<p class="text-gray-500 text-xs">Recognize your teammates! You earn +25 XP, they earn +50 XP.</p></div>';
+    html += '</div>';
+
+    // Give Recognition Card
+    html += '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">';
+    html += '<div class="flex items-center gap-2 mb-4">';
+    html += '<span class="text-2xl">\u2B50</span>';
+    html += '<h3 class="font-semibold text-gray-800">Give Recognition</h3>';
+    html += '</div>';
+
+    // Select teammate
+    html += '<label class="block text-xs font-medium text-gray-500 mb-1">Select Teammate</label>';
+    html += '<select id="peer-emp" class="w-full px-4 py-3 border border-gray-200 rounded-xl mb-4 text-sm bg-gray-50 focus:ring-2 focus:ring-brand-500 focus:border-brand-500">';
+    if (teammates.length === 0) {
+      html += '<option value="">No teammates in your store</option>';
+    }
     for (var i = 0; i < teammates.length; i++) {
-      html += '<option value="' + teammates[i].id + '">' + teammates[i].name + ' (Lv.' + teammates[i].level + ')</option>';
+      html += '<option value="' + teammates[i].id + '">' + teammates[i].name + ' \u2022 Lv.' + teammates[i].level + ' \u2022 ' + teammates[i].xp + ' XP</option>';
     }
     html += '</select>';
-    html += '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">';
+
+    // Recognition type buttons
+    html += '<label class="block text-xs font-medium text-gray-500 mb-2">What did they do great?</label>';
+    html += '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">';
     for (var j = 0; j < types.length; j++) {
-      html += '<button onclick="sendPeerRecognition(\'' + types[j].id + '\')" class="px-3 py-2 text-xs bg-brand-50 text-brand-700 rounded-lg hover:bg-brand-100 transition">' + types[j].icon + ' ' + types[j].label + '</button>';
+      html += '<button onclick="selectRecogType(\'' + types[j].id + '\', this)" data-type="' + types[j].id + '" class="peer-type-btn px-3 py-3 text-xs font-medium rounded-xl border-2 transition ' + types[j].color + '">' + types[j].icon + '<br>' + types[j].label + '</button>';
     }
     html += '</div>';
-    html += '<textarea id="peer-message" placeholder="Add a personal message..." class="w-full px-3 py-2 border rounded-lg text-sm" rows="2"></textarea>';
+
+    // Personal message
+    html += '<label class="block text-xs font-medium text-gray-500 mb-1">Personal Message (optional)</label>';
+    html += '<div class="flex gap-2">';
+    html += '<input id="peer-message" type="text" placeholder="e.g., Great job handling that difficult customer!" class="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-brand-500 focus:border-brand-500" />';
+    html += '<button onclick="sendPeerRecognition()" id="peer-send-btn" class="px-6 py-3 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700 transition shadow-sm disabled:opacity-50" disabled>\u279C Send</button>';
+    html += '</div>';
     html += '</div>';
 
-    // Recent peer recognitions
-    html += '<div class="bg-white rounded-xl shadow-sm p-6">';
-    html += '<h3 class="font-semibold mb-4">Recent Peer Recognitions</h3>';
+    // Recent peer recognitions feed
+    html += '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">';
+    html += '<div class="flex items-center gap-2 mb-4">';
+    html += '<span class="text-xl">\uD83D\uDD17</span>';
+    html += '<h3 class="font-semibold text-gray-800">Recent Peer Recognitions</h3>';
+    html += '<span class="ml-auto text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">' + recs.length + '</span>';
+    html += '</div>';
     if (recs.length === 0) {
-      html += '<p class="text-gray-400 text-sm">No peer recognitions yet. Be the first!</p>';
+      html += '<div class="text-center py-8">';
+      html += '<div class="text-4xl mb-2">\uD83E\uDD14</div>';
+      html += '<p class="text-gray-400 text-sm">No peer recognitions yet. Be the first to recognize a teammate!</p>';
+      html += '</div>';
     }
     for (var k = 0; k < recs.length; k++) {
       var r = recs[k];
-      html += '<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-2">';
-      html += '<span class="text-2xl">\uD83C\uDF1F</span>';
-      html += '<div class="flex-1"><div class="font-medium text-sm">' + r.from_name + ' \u2192 ' + r.to_name + '</div>';
-      html += '<div class="text-xs text-gray-500">' + r.message + '</div></div>';
-      html += '<span class="text-xs text-green-600 font-medium">+' + r.xp_awarded + ' XP</span>';
+      var typeObj = types.find(function(t){ return t.id === r.type; }) || types[0];
+      html += '<div class="flex items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl mb-2 border border-gray-100">';
+      html += '<div class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-lg flex-shrink-0">' + (typeObj ? typeObj.icon : '\uD83C\uDF1F') + '</div>';
+      html += '<div class="flex-1 min-w-0">';
+      html += '<div class="font-medium text-sm text-gray-800">' + r.from_name + ' <span class="text-gray-400">\u2192</span> ' + r.to_name + '</div>';
+      html += '<div class="text-xs text-gray-500 truncate">' + r.message + '</div>';
+      html += '</div>';
+      html += '<div class="text-right flex-shrink-0">';
+      html += '<span class="inline-block px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">+' + r.xp_awarded + ' XP</span>';
+      html += '</div>';
       html += '</div>';
     }
     html += '</div></div>';
+
+    // Store selected type
+    window._selectedRecogType = null;
     return html;
   });
 }
 
-function sendPeerRecognition(type) {
+function selectRecogType(type, btn) {
+  window._selectedRecogType = type;
+  var btns = document.querySelectorAll('.peer-type-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.remove('ring-2', 'ring-brand-500', 'ring-offset-2');
+  }
+  btn.classList.add('ring-2', 'ring-brand-500', 'ring-offset-2');
+  document.getElementById('peer-send-btn').disabled = false;
+}
+
+function sendPeerRecognition() {
+  var type = window._selectedRecogType;
+  if (!type) { showToast('Please select a recognition type', 'warning'); return; }
   var empId = document.getElementById('peer-emp').value;
+  if (!empId) { showToast('Please select a teammate', 'warning'); return; }
   var msg = document.getElementById('peer-message').value || 'Great work!';
+  var btn = document.getElementById('peer-send-btn');
+  btn.disabled = true; btn.textContent = 'Sending...';
   api('/employee/peer-recognize', { method: 'POST', body: JSON.stringify({ employee_id: parseInt(empId), recognition_type: type, message: msg }) }).then(function(res) {
     if (res && res.status === 'ok') {
-      showToast('Recognized! +' + res.giver_xp_earned + ' XP for you, +' + res.receiver_xp_earned + ' XP for them', 'success');
+      showToast('Recognized! +' + res.giver_xp_earned + ' XP for you, +' + res.receiver_xp_earned + ' XP for them!', 'success');
       render();
-    } else if (res && res.detail) {
-      showToast(res.detail, 'error');
+    } else {
+      showToast((res && res.detail) || 'Failed to send recognition', 'error');
+      btn.disabled = false; btn.textContent = '\u279C Send';
     }
+  }).catch(function() {
+    showToast('Network error. Try again.', 'error');
+    btn.disabled = false; btn.textContent = '\u279C Send';
   });
 }
 
@@ -1863,31 +1946,47 @@ function renderPosLearningPage() {
     var afterSale = results[0] || [];
     var idle = results[1] || [];
     var beforeShift = results[2] || [];
-    var html = '<div class="max-w-4xl mx-auto p-4">';
-    html += '<h2 class="text-2xl font-bold text-gray-800 mb-6">\uD83D\uDCBB ' + t('posLearning') + '</h2>';
-    html += '<p class="text-gray-500 text-sm mb-6">Quick learning tips triggered by POS activity. Complete during natural breaks on the sales floor.</p>';
 
-    function renderLessonSection(title, icon, lessons) {
+    var html = '<div class="max-w-4xl mx-auto p-4">';
+
+    // Back button + title
+    html += '<div class="flex items-center gap-3 mb-6">';
+    html += '<button onclick="navigate(\'employee-dashboard\')" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition text-gray-600 text-lg">\u2190</button>';
+    html += '<div><h2 class="text-xl font-bold text-gray-800">\uD83D\uDCBB ' + t('posLearning') + '</h2>';
+    html += '<p class="text-gray-500 text-xs">Quick tips for the sales floor. Complete during natural breaks.</p></div>';
+    html += '</div>';
+
+    function renderLessonSection(title, icon, lessons, color) {
+      if (lessons.length === 0) return '';
       var s = '<div class="mb-6">';
-      s += '<h3 class="font-semibold text-lg mb-3">' + icon + ' ' + title + '</h3>';
+      s += '<div class="flex items-center gap-2 mb-3">';
+      s += '<span class="text-xl">' + icon + '</span>';
+      s += '<h3 class="font-semibold text-gray-800">' + title + '</h3>';
+      s += '<span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">' + lessons.length + ' tips</span>';
+      s += '</div>';
       for (var i = 0; i < lessons.length; i++) {
         var l = lessons[i];
-        s += '<div class="bg-white rounded-xl shadow-sm p-4 mb-3 border-l-4 border-brand-500">';
-        s += '<div class="flex items-start justify-between">';
-        s += '<div class="flex-1"><div class="font-medium text-sm mb-1">' + l.title + '</div>';
-        s += '<div class="text-xs text-gray-600 mb-2">' + l.content + '</div>';
-        s += '<span class="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">' + l.skill_category.replace(/_/g, ' ') + '</span>';
-        s += '</div>';
-        s += '<button onclick="completePosLesson(\'' + l.id + '\')" class="ml-3 px-3 py-1.5 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition whitespace-nowrap">+' + l.xp_reward + ' XP \u2713</button>';
+        s += '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-3 hover:shadow-md transition">';
+        s += '<div class="flex items-start gap-4">';
+        s += '<div class="w-10 h-10 rounded-xl ' + color + ' flex items-center justify-center text-lg flex-shrink-0">' + icon + '</div>';
+        s += '<div class="flex-1 min-w-0">';
+        s += '<div class="font-semibold text-sm text-gray-800 mb-1">' + l.title + '</div>';
+        s += '<div class="text-xs text-gray-600 leading-relaxed mb-2">' + l.content + '</div>';
+        s += '<div class="flex items-center gap-2">';
+        s += '<span class="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">' + l.skill_category.replace(/_/g, ' ') + '</span>';
+        s += '<span class="text-xs text-gray-400">\u2022</span>';
+        s += '<span class="text-xs text-green-600 font-medium">+' + l.xp_reward + ' XP</span>';
+        s += '</div></div>';
+        s += '<button onclick="completePosLesson(\'' + l.id + '\')" class="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition shadow-sm whitespace-nowrap flex-shrink-0">\u2713 Complete</button>';
         s += '</div></div>';
       }
       s += '</div>';
       return s;
     }
 
-    html += renderLessonSection('After Sale Tips', '\uD83D\uDCB0', afterSale);
-    html += renderLessonSection('Quick Tips (Anytime)', '\u26A1', idle);
-    html += renderLessonSection('Before Shift', '\uD83C\uDF05', beforeShift);
+    html += renderLessonSection('After Sale Tips', '\uD83D\uDCB0', afterSale, 'bg-amber-100 text-amber-700');
+    html += renderLessonSection('Quick Tips (Anytime)', '\u26A1', idle, 'bg-blue-100 text-blue-700');
+    html += renderLessonSection('Before Shift', '\uD83C\uDF05', beforeShift, 'bg-orange-100 text-orange-700');
     html += '</div>';
     return html;
   });
