@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Database
+*.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary debug/fix scripts
+backend/check_*.py
+backend/debug_*.py
+backend/fix_*.py
+backend/enhance_*.py
+backend/revert_*.py
+backend/patch_*.py
+backend/gen_*.py
+backend/cleanup_*.py
+backend/test_*.py
+backend/scale_seed.py
+backend/update_branding*.py
+backend/build_mgr_ui.py
+backend/fix_seed_unicode.py
+
+# Freebuff
+.freebuff/
+
+# Logs
+*.log
+tmp/
